@@ -93,13 +93,13 @@ player.open=function(info){
 
 	player.playStatus=1;
 	$("#play_stop").css("background-image","url(ui/stop.png)");
-	lrc.open("我爱的人 - 林宥嘉.lrc");
+	lrc.open(info.lrc);
 
 	if(list.playingList==list.currentList)
 		$("li[queue='"+list.lastPlayQueue+"']").children().addClass("playing");
 
 	if(result.errorCode>0){
-		this.stop();
+		//this.stop();
 		alert(result.reason);
 	}
 }

@@ -47,7 +47,7 @@ lrc.open=function(lrcFile){
 	var pos=player.zplay.getPos();
 	this.lrcJson[pos.minute*60+pos.second-3] ='<br/>';
 
-	console.log(this.lrcJson);
+	//console.log(this.lrcJson);
 	$("#lrc #container").stop().empty().css("margin-top","0");
 
 	for(var time in this.lrcJson){

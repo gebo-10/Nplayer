@@ -1,0 +1,52 @@
+#playList .customScrollBox{
+	position:relative;  width:100%;overflow:hidden;
+}
+#playList .customScrollBox .container{
+	position:relative;  width:102px; float:left;
+}
+#playList .customScrollBox .content{clear:both;}
+#playList .dragger_container{
+	position:relative; 
+	width:4px; 
+	height:100%; 
+	float:left;  
+	/*border-left:1px solid #31231E; border-right:1px solid #8E7757; */
+	cursor:pointer
+}
+#playList .dragger{
+	position:absolute; 
+	width:4px; height:30px; 
+	background:#31231E; margin-left:0px; 
+	overflow:hidden; cursor:pointer; 
+	border-radius: 2px;
+}
+#playList .dragger_pressed{
+	position:absolute; 
+	width:4px; height:30px; 
+	background:#31231E; margin-left:0px; 
+	overflow:hidden; cursor:pointer; 
+	border-radius: 2px;
+}
+
+
+#musics .customScrollBox{position:relative; height:100%; width:100%;overflow:hidden;}
+#musics .customScrollBox .container{position:relative;  float:left;}
+#musics .customScrollBox .content{clear:both;}
+#musics .dragger_container{
+	position:relative; width:0px; 
+	height:100%; float:left; 
+	  cursor:pointer}
+#musics .dragger{
+	position:absolute; 
+	width:4px; height:30px; 
+	background:#31231E; margin-left:0px; 
+	overflow:hidden; cursor:pointer; 
+	border-radius: 2px;
+}
+#musics .dragger_pressed{
+	position:absolute; 
+	width:4px; height:30px; 
+	background:#31231E; margin-left:0px; 
+	overflow:hidden; cursor:pointer; 
+	border-radius: 2px;
+}

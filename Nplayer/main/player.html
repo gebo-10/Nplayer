@@ -1,0 +1,932 @@
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<html xmlns="http://www.w3.org/1999/xhtml" lang="zh" xml:lang="zh">
+	<head>
+		<script type="text/javascript" src="jquery-2.0.3.min.js"></script>
+
+		<link rel="stylesheet" href="jquery-ui/themes/base/jquery.ui.all.css">
+		<script src="jquery-ui/ui/jquery.ui.core.js"></script>
+		<script src="jquery-ui/ui/jquery.ui.widget.js"></script>
+		<script src="jquery-ui/ui/jquery.ui.mouse.js"></script>
+		<script src="jquery-ui/ui/jquery.ui.slider.js"></script>
+		
+		<script src="list.js"></script>
+<script>
+//窗口的相关事件
+$(function() {
+	var gui = require('nw.gui');
+	var win = gui.Window.get();
+
+	$("#min").click( function () {win.minimize();})
+	$("#close").click( function () {win.close();})
+	win.on('close', function() {
+		var fs = require('fs');
+		var json=JSON.stringify(config);
+		fs.writeFile('config.json', json,{"encoding":"UTF-8"});
+	//	alert("hello close");
+		this.close(true);
+	});
+})
+</script>
+<script>
+	$(function() {
+		$("#catalogHander").mouseenter(
+		  function () {
+		    $("#catalog").animate({marginLeft: 0}, "fast");
+		    $("#top").css("-webkit-app-region","no-drag");
+		  }
+		);
+		$("#catalog").mouseleave(
+		  function () {
+		    $("#catalog").animate({marginLeft: -305}, "fast");
+		     $("#top").css("-webkit-app-region","drag");
+		  }
+		);
+
+		$("#playButton").click(
+			function () {
+		    	$("#contain").animate({marginLeft: 0}, "fast");
+		  	}
+		);
+		$("#listButton").click(
+			function () {
+		    	$("#contain").animate({marginLeft: -305}, "fast");
+		  	}
+		);
+		$("#searchButton").click(
+			function () {
+		    	$("#contain").animate({marginLeft: -610}, "fast");
+		  	}
+		);
+		$("#setButton").click(
+			function () {
+		    	$("#contain").animate({marginLeft: -915}, "fast");
+		  	}
+		);
+		$("#aboutButton").click(
+			function () {
+		    	$("#contain").animate({marginLeft: -1220}, "fast");
+		  	}
+		);
+
+	});
+</script>
+<script type="text/javascript">
+require('nw.gui').Window.get().showDevTools();
+
+
+
+//初始化config
+var config;		//全局变量
+var fs = require('fs');
+var json=String(fs.readFileSync('config.json',{"encoding":"UTF-8"} ));
+config=JSON.parse(json);
+
+var volSign=1;	//静音状态
+var playStatus=1;	//播放状态
+var playList=new Array();
+var currentList=new Array();
+ currentList.length=0;
+var init=false;
+
+var jsZplay = require('./binding');
+var player=new  Object();
+player.zplay = new jsZplay.jsZplay();
+
+player.lrc=new  Object();
+player.lrc.lrcJson=new Array();
+player.lrc.open=new Function();
+player.lrc.scroll=new Function();
+
+player.open=function(info){
+	var result=player.zplay.open(info.url);
+	var title=info.name+"<br>"+info.author;
+	$("#title > p").html(title);
+
+	playStatus=1;
+	$("#play_stop").css("background-image","url(ui/stop.png)");
+	player.lrc.open("我爱的人 - 林宥嘉.lrc");
+	if(result.errorCode>0){
+		this.stop();
+		alert(result.reason);
+	}
+}
+player.pause=function(){
+	playStatus=0;
+	$("#play_stop").css("background-image","url(ui/play.png)");
+	player.zplay.pause();
+}
+player.stop=function(){
+	playStatus=0;
+	$("#play_stop").css("background-image","url(ui/play.png)");
+	$( "#progressbar" ).slider( "value",0);
+	player.zplay.stop();
+}
+player.next=function(){					//手动下一曲 与播放完自动下一曲的逻辑不一样
+	switch(config.playMode){
+		case "once" :
+			player.stop();
+			break;
+		case "order" :
+			var index=config.lastPlayQueue;
+			
+			if( (index+1) ==playList.length){
+				player.stop();
+			}else{
+				config.lastPlayQueue++;
+				var info=config.source[playList[++index]];
+				player.open(info);
+			}
+			break;
+			
+		case "loop_one" :
+			player.zplay.seek(0);
+			break;
+		case "loop_all" :
+			var index=config.lastPlayQueue;
+			
+			if( (index+1) ==playList.length){
+				config.lastPlayQueue=0;
+				var info=config.source[playList[0]];
+				player.open(info);
+			}else{
+				config.lastPlayQueue++;
+				var info=config.source[playList[++index]];
+				player.open(info);
+			}
+			break;
+		case "random" :
+			var index=Math.floor(Math.random()*playList.length+1);
+			config.lastPlayQueue=index;
+			var info=config.source[playList[index]];
+			player.open(info);
+			break;
+	}
+}
+var init=function(){
+	if(playList[config.lastPlayQueue]){
+		var info=config.source[playList[config.lastPlayQueue]];
+	}else{
+		info={"name":"","author":"","url":"init.mp3","lrc":""};
+		player.open(info);
+	}
+	if(info){
+		init=true;
+		playList=config.playLists[config.lastPlayList];
+		currentList=playList;
+		player.open(info);
+	}else{
+		info={"name":"","author":"","url":"init.mp3","lrc":""};
+		player.open(info);
+	}
+}
+
+
+init();
+
+$(document).ready(function(){
+	/////////////////////////////////////////初始化
+	player.zplay.setVol(config.vol);
+	$("#play_mode").css("background-image","url(ui/"+config.playMode+".png)"); //初始mode
+	
+
+
+	for (var list in config.playLists){
+		console.log(list);
+		var str="<li list="+list+"><p>"+list+"</p></li>";
+		$("#playList-ul").append(str);
+	}
+	$("li[list='"+config.lastPlayList+"']").addClass("listFoucs");
+	
+
+	/////////////////////////////////////////
+	$( "#progressbar" ).slider({	//进度条 
+		value: 0,
+		orientation: "horizontal",
+		range: "min",
+		min: 0,
+		max: 100,
+		animate: true,
+		slide: function( event, ui ) {
+			player.zplay.seek(ui.value);
+			if(playStatus==0)
+				player.zplay.pause();
+		},
+		change: function( event, ui ) {
+			console.log(ui.value);
+			if(ui.value>=99)
+				player.next();
+		}
+	});
+	
+	var pos;
+	var info;
+	process=function(){
+		pos=player.zplay.getPos();
+		$( "#progressbar" ).slider('value',Number((pos.min*60+pos.sec)/(pos.minute*60+pos.second)*100));
+		player.lrc.scroll(pos.min*60+pos.sec);
+	};
+	setInterval("process()",1000);
+
+
+	$( "#slider-vol" ).slider({		//声音
+		orientation: "vertical",
+		range: "min",
+		min: 0,
+		max: 100,
+		value: config.vol,
+		animate: true,
+		slide: function( event, ui ) {
+			config.vol= ui.value;
+			if(volSign==1)
+				player.zplay.setVol(config.vol);
+		},
+		change: function( event, ui ) {
+			if(ui.value==0){
+				 $("#vol").css("background-image","url(ui/no_vol.png)");
+			}else{
+				if(volSign==0)return;
+				$("#vol").css("background-image","url(ui/vol.png)");
+			}
+			
+		}
+	});
+
+	
+	$("#mode_list > div").click(function () {	//播放模式的切换
+		config.playMode=$(this).attr("id");
+		var modeimg=$(this).css("background-image");
+		$("#play_mode").css("background-image",modeimg);
+	});
+
+	$("#volbg").click( function () { return false;}); //阻止默认事件
+
+	$("#vol").click( function () { //静音切换
+		if(volSign==0){
+			volSign=1;
+			$(this).css("background-image","url(ui/vol.png)");
+			$( "#slider-vol" ).slider( "value", config.vol );
+			player.zplay.setVol(config.vol);
+			
+		}
+		else{
+			volSign=0;
+			 $(this).css("background-image","url(ui/no_vol.png)");
+			 $( "#slider-vol" ).slider( "value", 0 );
+			 player.zplay.setVol(0);
+		}
+		//alert("hello");
+	}); 
+
+
+	$("#pre div").hover(
+	  function () {
+	    $("#pre").css("background-image","url(ui/pre2.png)");
+	  },
+	  function () {
+	    $("#pre").css("background-image","url(ui/pre.png)");
+	  }
+	);
+
+	$("#next div").hover(
+	  function () {
+	  	
+	   	 $("#next").css("background-image","url(ui/next2.png)");
+	  },
+	  function () {
+	    $("#next").css("background-image","url(ui/next.png)");
+	  }
+	);
+
+	$("#play_stop div").hover(		
+	  function () {
+		  if(playStatus==1)//playing
+		    $("#play_stop").css("background-image","url(ui/stop2.png)");
+		else
+			 $("#play_stop").css("background-image","url(ui/play2.png)");
+	  },
+	  function () {
+	  	if(playStatus==1)//playing
+	    	$("#play_stop").css("background-image","url(ui/stop.png)");
+
+	    else
+			 $("#play_stop").css("background-image","url(ui/play.png)");
+	  }
+	);
+
+	$("#next div").click(function(){
+		var index=config.lastPlayQueue;		
+		if( (index+1) ==playList.length){
+			config.lastPlayQueue=0;
+			var info=config.source[playList[0]];
+			player.open(info);
+		}else{
+			config.lastPlayQueue++;
+			var info=config.source[playList[++index]];
+			player.open(info);
+		}
+
+
+	});
+	$("#pre div").click(function(){
+
+		var index=config.lastPlayQueue;		
+		if( index==0){
+			config.lastPlayQueue=playList.length-1;
+			var info=config.source[playList[playList.length-1]];
+			player.open(info);
+		}else{
+			config.lastPlayQueue--;
+			var info=config.source[playList[--index]];
+			player.open(info);
+		}
+
+	});
+	
+	
+	$("#play_stop div").click( function () { 
+		if(playStatus==1){
+			playStatus=0;
+			$("#play_stop").css("background-image","url(ui/play2.png)");
+			player.zplay.pause();
+		}
+		else{ 
+			playStatus=1;
+			 $("#play_stop").css("background-image","url(ui/stop2.png)");
+			 player.zplay.play();
+		}
+	});
+
+												
+})
+
+</script>
+<script>
+player.lrc=new  Object();
+player.lrc.lrcJson={};
+player.lrc.open=function(lrcFile){
+
+	var lrc=String(fs.readFileSync(lrcFile,{"encoding":"UTF-8"}));
+	var lrcArray = lrc.split('\n');
+	
+	player.lrc.lrcJson[0]="<br/>";
+	var time;
+	for(var i = 0,l = lrcArray.length;i < l;i++){
+		//正则匹配 删除[00:00.00]格式或者 [00:00:00]格式
+		//所有的 lrc 都应该 decode 一下，因为各种语言都可能有
+		clause = decodeURIComponent(lrcArray[i]).replace(/\[\d*:\d*((\.|\:)\d*)*\]/g,'');
+		timeRegExpArr = decodeURIComponent(lrcArray[i]).match(/\[\d*:\d*((\.|\:)\d*)*\]/g);
+		if(timeRegExpArr) {
+			for(var k = 0,h = timeRegExpArr.length;k < h;k++) { //第一遍循环，JSON存储歌词，数组存储时间
+				min = Number(String(timeRegExpArr[k].match(/\[\d*/i)).slice(1));
+				sec = Number(String(timeRegExpArr[k].match(/\:\d*/i)).slice(1));
+				time = min * 60 + sec;
+				this.lrcJson[time] = clause + '<br />';
+			}
+		} 
+	}
+	var pos=player.zplay.getPos();
+	this.lrcJson[pos.minute*60+pos.second-3] ='<br/>';
+
+	console.log(this.lrcJson);
+	$("#lrc #container").stop().empty().css("margin-top","0");
+
+	for(var time in this.lrcJson){
+		//console.log(time);
+		$("#lrc #container").append("<p time=\""+time+"\" >"+this.lrcJson[time]+"</p>");
+		var obj=$("p[time=\""+time+"\"]");
+		var pos=obj.position();
+		obj.attr("lang",pos.top-285);
+
+	}
+
+	var lrcSign=new Object();
+	lrcSign.status=false;
+	lrcSign.lastY=0;
+	lrcSign.newTime=0;
+
+	$("#lrc").mousedown(function(e){
+		lrcSign.status=true;
+		lrcSign.lastY=e.pageY;
+		console.log("mousedown",e.pageY);
+	});
+	$("#lrc").mouseup(function(e){
+		//alert(lrcSign.status);
+		if(lrcSign.status==false) return;
+		var offset=e.pageY-lrcSign.lastY;
+		if (offset==0) {lrcSign.status=false;return true;};
+
+		var pos=player.zplay.getPos();
+		var num=Number(lrcSign.newTime/(pos.minute*60+pos.second)*100)
+		$( "#progressbar" ).slider('value',num);
+
+		player.zplay.seek(num);
+		if (playStatus==0)
+			player.zplay.pause();
+		player.lrc.scroll(lrcSign.newTime);
+		
+
+
+		lrcSign.status=false;
+		console.log("num=",num);
+		
+		return true;
+	});
+	$("#lrc").mousemove(function(e){
+		if(lrcSign.status==false) return;
+		
+
+
+		var offset=e.pageY-lrcSign.lastY;
+
+		var newTime=$(".lrcNow").attr("time")-offset*2;
+		if (newTime<0) {newTime=0;};
+		while(newTime){
+			if(player.lrc.lrcJson[newTime])
+				break;
+			newTime--;
+		}
+		var obj=$("p[time=\""+newTime+"\"]");
+		if(obj){
+			console.log("newTime=",newTime);
+			var pos=obj.attr("lang");
+			$("#lrc #container").stop().animate({marginTop: -pos}, "fast");
+
+			pos=player.zplay.getPos();
+			var num=Number(newTime/(pos.minute*60+pos.second)*100);
+			$( "#progressbar" ).slider('value',num);
+			console.log("num2=",num);
+
+		}else{
+			//$("#lrc #container").stop().animate({marginTop: 0}, "fast");
+		}
+
+
+		lrcSign.newTime=newTime;
+		//lrcSign.lastY=e.pageY;
+
+		console.log("mousemove",offset);
+	});
+	$("#lrc").mouseleave(function(e){
+		lrcSign.status=false;
+		
+		var obj=$(".lrcNow");
+		var pos=obj.attr("lang");
+		$("#lrc #container").stop().animate({marginTop: -pos}, "fast");
+
+	});
+
+
+}
+
+player.lrc.scroll=function(time){
+
+
+	if(this.lrcJson[time]){
+
+		var obj=$("p[time=\""+time+"\"]");
+		var nextTime=0;
+		if(obj.next()){
+			nextTime=obj.next().attr("time");	//下个段落的时间
+		}
+		var pos=obj.attr("lang");
+		$("#lrc #container").stop().animate({marginTop: -pos}, (nextTime-time+1)*1000);
+		$(".lrcNow").removeClass("lrcNow");
+		obj.addClass("lrcNow");
+		//$("#lrc #container").css("marginTop",-pos);
+		
+
+		console.log(time,nextTime,nextTime-time,this.lrcJson[time]);
+
+	}else{
+		while(time){
+			if(player.lrc.lrcJson[time])
+				break;
+			time--;
+		}
+		var obj=$("p[time=\""+time+"\"]");
+		var pos=obj.attr("lang");
+		$("#lrc #container").stop().animate({marginTop: -pos}, "slow");
+		$(".lrcNow").removeClass("lrcNow");
+		obj.addClass("lrcNow");
+	}
+
+}
+</script>
+<style type="text/css">
+
+body{background-color:green;margin: 0;padding: 0;border: 0;}
+div{ margin:0;padding:0;text-align: center;margin: 0 auto;-webkit-user-select: none;}
+ul,li{margin:0;padding:0;border: 0;}
+
+#window{width:305px;background-color:#f9f9f9;}
+#catalogHander{height:30px;width:30px;position: absolute;background-color: red;z-index: 5;-webkit-app-region: no-drag;}
+#catalog{width:305px;height:30px;box-shadow:0px 1px 2px #8897ad; position: absolute;background-color: green;margin-left: -305px;z-index: 10;-webkit-app-region: no-drag;}
+#catalog ul li{float: left;display: block;-webkit-app-region: no-drag;}
+#top{height:30px;box-shadow:0px 1px 2px #8897ad;}
+
+
+#top #contral {float:right;width:110px; margin-right: 5px;
+	box-shadow:0px 1px 1px #000;
+ border-bottom-right-radius :4px; 
+ border-bottom-left-radius :4px;
+-webkit-app-region:no-drag;
+}
+#contral > div{height:23px;width:31px;float:left;}
+#contral > div:hover{background-color:#bbbbbb;}
+
+#min{margin-left: 10px;}
+#min{background-image: url(ui/min.png);}
+#close{background-image: url(ui/close.png);}
+
+#mini{background-image: url(ui/mini.png);}
+
+#main{margin-top:5px;width:305px; overflow: hidden; box-shadow:0px -1px 2px #8897ad;}
+#contain{height:305px;width:2000px;margin-left:0px;}
+
+#contain > div{height:320px;width:305px;float:left;}
+
+#play #title{text-align: center;height: 54px;}
+#title p{line-height: 20px;width: 255px; margin-left: 25px;height: 50px;overflow: hidden;-webkit-user-select:text;text-shadow:1px 1px 4px #81A39E;font-family: Verdana, Arial, '宋体';font-size: 20px;
+color:#8c4b8c;}
+::selection{
+/*background:pink;*/
+color:#8E30D8;
+}
+#play_contral{height:145px;  } 
+#play_contral > div {float: left;height:145px; } 
+
+
+
+#pre{width: 94px; background-image: url(ui/pre.png);}
+#pre div{width: 40px;height: 40px;margin:46px auto auto 38px; }
+
+
+#play_stop{width: 119px; background-image: url(ui/stop.png);}
+#play_stop div{width: 80px;height: 80px;margin:25px auto auto 20px; }
+
+
+#next{width: 92px; background-image: url(ui/next.png);}
+#next div{width: 40px;height: 40px;margin:46px auto auto 16px; }
+
+
+
+
+#other_contral{height: 15px;box-shadow:0px 0px 1px #000;margin-top: 1px;}
+#other_contral >div{float: left;height: 15px;}
+	#process{width:243px;box-shadow:0px 0px 1px #000;}
+	#process .ui-widget-content {background-color: #f7523f;height:100%;}
+		.ui-slider-range{background-color: #a4d44a;}
+
+		.ui-slider-handle{background-color: #a4d44a;background:  url(ui/icon1.png) 50% no-repeat;}
+
+
+
+	#play_mode{width: 30px;box-shadow:0px 0px 1px #000;margin-right: 1px;margin-left: 0px; background:  url(ui/once.png) 50% no-repeat;}
+	#play_mode:hover #mode_list{display:block;}
+
+	#mode_list{height:97px;width:30px;margin-top: -100px; background-color:white;box-shadow:0px 0px 1px #000;padding-top: 3px;display:none;}
+	#mode_list >div{margin-top: 3px;}
+	#mode_list >div:hover {background-color:#a4d44a;}
+		#once{width:100%;height:15px;}
+		#loop_one{width:100%;height:15px;}
+		#loop_all{width:100%;height:15px;}
+		#random{width:100%;height:15px;}
+		#order{width:100%;height:15px;}
+	#mode_list img{height: 15px;width: 30px;}
+
+	#vol{width: 30px;box-shadow:0px 0px 1px #000;margin-left: 1px;background-image:url(ui/vol.png);}
+	#vol .ui-widget-content {background-color: #d2d1d1;}
+
+		#volbg{height:80px;width:30px;margin-top: -77px;display: none;float:right;background-image: url(ui/volbg.png) ;background-repeat:no-repeat;}
+
+	#slider-vol{width:10px;height:55px;top: 10px;left:-2px;}
+	#vol:hover #volbg{display: block;}
+#lrc{margin-top: 5px;color:#4a5768;text-shadow:1px 1px 4px #81A39E;font-family: Verdana, Arial, '宋体';font-size: 20px;
+color:#8c4b8c;
+width: 300px;
+height: 100px;
+overflow: hidden;
+}
+#container{width: 100%;}
+p{margin: 0;padding: 0;}
+#container p{line-height: 20px;}
+</style>
+</head>
+<body>
+	<div id="window">
+		
+		<div id="catalog">
+			<ul>
+				<li id="playButton">正在播放</li>
+				<li id="listButton">音乐列表</li>
+				<li id="searchButton">搜索</li>
+				<li id="setButton">设置</li>
+				<li id="aboutButton">关于</li>
+			</ul>
+		</div>
+
+		<div id="top">
+			<div id="catalogHander"></div>
+		
+			<div id="contral">
+				<div id="min"></div>
+				<div id="mini"></div>
+				<div id="close"></div>
+			</div>
+		</div>
+
+		
+
+		<div id="main">
+			<div id="contain">
+				<div id="play">
+					<div id="title"><p></p></div>
+					<div id="play_contral">
+						<div id="pre"><div></div></div>
+						<div id="play_stop"><div></div></div>
+						<div id="next"><div></div></div>
+
+					</div>
+					<div id="other_contral">
+						<div id="play_mode">
+							<div id="mode_list">
+								<div id="once" style="background-image:url(ui/once.png); " mode="1"></div>
+								<div id="loop_one" style="background-image:url(ui/loop_one.png); " mode="2"></div>
+								<div id="order" style="background-image:url(ui/order.png); " mode="3"></div>
+								<div id="loop_all" style="background-image:url(ui/loop_all.png); " mode="4"></div>
+								<div id="random" style="background-image:url(ui/random.png); " mode="5"></div>
+							</div>
+						</div>
+						<div id="process">
+							<div id="progressbar"></div>
+						</div>
+						<div id="vol">
+							<div id="volbg">
+								<div id="slider-vol" ></div>
+							</div>
+						</div>
+					</div>
+					<div id="lrc">
+						<div id="container">
+						
+						</div>
+					</div>
+				</div>
+
+
+
+
+
+
+<!-- 歌曲列表的scroll -->
+<link href="scroll/jquery.mCustomScrollbar.css" rel="stylesheet" type="text/css" />
+<script src="jquery-ui/ui/jquery-ui.js"></script>
+<script type="text/javascript" src="scroll/jquery.easing.1.3.js"></script>
+<script type="text/javascript" src="scroll/jquery.mousewheel.min.js"></script>
+<script src="scroll/jquery.mCustomScrollbar.js"></script>
+
+<script type="text/javascript">
+
+$(document).ready(function(){
+	$("#playList").mCustomScrollbar("vertical",900,"easeOutCirc",1.05,"auto","yes","yes",0); 
+	$("#musics").mCustomScrollbar("vertical",900,"easeOutCirc",1.05,"auto","yes","yes",0); 
+	$(".customScrollBox").mouseover(function(){
+		//alert();
+
+		$(this).find(".dragger_container").css("opacity","1");
+	});
+	$(".customScrollBox").mouseout(function(e){
+		if(e.which!=1)
+			$(this).find(".dragger_container").css("opacity","0");
+	});
+});
+</script>
+<style type="text/css">
+.dragger_container{opacity: 0;}
+.customScrollBox{height:295px;}
+#list li{list-style-type:none;
+	-webkit-transition: background-color 0.5s;
+	background-color: white;
+	text-align: left;
+}
+
+#list>div{float: left;height: 100%;}
+#playList{
+	width:35%;
+	border-right:1px solid red;
+}
+#playList li {margin: 0;line-height: 30px;}
+
+#playList li p{margin: 0;margin-left: 5px;}
+#playList-ul > li:hover{
+/*	-webkit-animation: liANI 0.7s;*/
+	background-color: red;
+}
+#playList-ul .listFoucs{background-color: red;}
+
+
+#playList .context-menu-active{background-color: red;}
+
+
+
+#myMusic{box-shadow:0px 1px 2px #8897ad;height:25px;margin-bottom:2px;}
+#myMusic p{line-height:25px;margin: 0 auto;padding: 0;}
+
+
+#musicList{width:64%;}
+#musicList li{-webkit-user-select:text;height: 20px;overflow: hidden;}
+#musicList  li>div{height: 20px;}
+#musicList  li:hover .normalItem{margin-top: -20px;}
+.selectedItem{background-color: green;}
+
+#musicList .playingLi{background-color:black;}
+
+#musics{width: 100%;height: 300px;}
+#musics .container{width:96%;}
+@-webkit-keyframes liANI /* Safari 和 Chrome */
+	{
+	from {background-color: white;}
+	to {background-color: red;}
+	}
+#search{box-shadow:0px 1px 2px #8897ad;height:25px;margin-bottom:2px;}
+.delThis , .playThis{height: 10px;width: 10px;background-color: red;cursor: Default;margin-left: 3px;}
+</style>
+				<div id="list">
+					<div id="playList">
+						<div id="myMusic"><P>我的音乐</P></div>
+						<div class="customScrollBox">
+							<div class="container">
+								<div class="content">
+									<ul id="playList-ul">
+										
+									</ul>
+								</div>
+							</div>
+							<div class="dragger_container">
+								<div class="dragger"></div>
+							</div>
+						</div>
+					
+					</div>
+					<div id="musicList">
+						<div id="search">
+							<input type="text" value="搜索">
+						</div>
+						<div id="musics">
+							<div class="customScrollBox">
+								<div class="container">
+									<div class="content">
+										<ul id="musicList-ul">
+											
+										</ul>
+									</div>
+								</div>
+								<div class="dragger_container">
+									<div class="dragger"></div>
+								</div>
+							</div>
+						</div>
+
+					</div>
+				</div>
+				<div id="search">3</div>
+				<div id="set">4</div>
+				<div id="about">5</div>
+			</div>
+		</div>
+	</div>
+
+
+<script src="menu/jquery.contextMenu.js" type="text/javascript"></script>
+<link href="menu/jquery.contextMenu.css" rel="stylesheet" type="text/css" />
+<script type="text/javascript">
+player.addMusic=function(playListTo,url){
+	var info={"name":"","author":""}
+	var tmp=url;
+	var tmp2=tmp.match(/[^\\](?=\.(mp3|mp2|mp1|ogg|flac|ac3|aac|oga|wav|and|pcm)\b)/);
+	info["name"]=tmp2[0];
+	//info["author"]=;
+	info["url"]=url;
+	info["lrc"]=url.replace(/\.(mp3|mp2|mp1|ogg|flac|ac3|aac|oga|wav|and|pcm)\b/,".lrc");
+	config.source[++config.uid]=info;
+	playListTo.push(String(config.uid));
+}
+	var chooseFile=function(){
+		$("#chooseFile").click();
+		return true;
+	}
+	var getPath=function(value){
+		player.addMusic(currentList,value);
+		console.log(config);
+	}
+</script>
+<script type="text/javascript">
+	var addList=function(name){
+		config.playLists[name]=Array();
+		console.log(config);
+	}
+</script>
+<input type="file" id="chooseFile" style="display:none" onchange="javascript:getPath(this.value);" accept="audio/*">
+
+<menu id="customScrollBoxMenu2" type="context" style="display:none" class="showcase">
+  <command label="添加文件" onclick="chooseFile()"></command>
+  <command label="resize" onclick="alert('resize')"></command>
+</menu>
+
+<menu id="customScrollBoxMenu" type="context" style="display:none" class="showcase">
+  <command label="添加列表" onclick="addList('hello')"></command>
+  <command label="添加音乐文件夹" onclick="addListFromFolder()"></command>
+   <command label="添加文件" onclick="chooseFile()"></command>
+
+   <command label="test" onclick="hello()"></command>
+</menu>
+
+<script type="text/javascript">
+	$(document).ready(function(){ 
+		
+		if(currentList){
+			for(var i=0;i<currentList.length;i++){
+				var info=config.source[currentList[i]];
+				var str="<li queue=\""+i+"\" ><div class=\"normalItem\">"+info.name+"</div><div class=\"selectedItem\" >"+info.name+"<span queue=\""+i+"\" class=\"playThis\">play</span><span queue=\""+i+"\" class='delThis'>del</span></div></li>";
+					$("#musicList-ul").append(str);
+			}
+			$("li[queue='"+config.lastPlayQueue+"']").addClass("playingLi");//初始化正在播放
+		}
+	  //    $.contextMenu({
+	  //       selector:'#playList-ul li', 
+	  //       items: $.contextMenu.fromMenu($('#html5menu')),
+	  //       callback: function(key, options) {
+			// 	var m = "clicked: " + key;
+			// 	alert(options);
+			// 	 console.log(options); 
+			// }
+	  //    });
+
+
+		 $.contextMenu({
+	        selector:'#playList .customScrollBox', 
+	        items: $.contextMenu.fromMenu($('#customScrollBoxMenu')),
+	        
+	     });
+	     $("#playList-ul > li").click(function(event) {
+		    switch (event.which) {
+		    	case 1:
+		    		$("#musicList-ul").empty();
+		    		var attr=$(this).attr("list");
+		    		currentList=config.playLists[attr];
+
+		    		for(var i=0;i<currentList.length;i++){
+		    			var info=config.source[currentList[i]];
+		    			var str="<li><div class=\"normalItem\">"+info.name+"</div><div class=\"selectedItem\" >"+info.name+"<span queue=\""+i+"\" class=\"playThis\">play</span><span queue=\""+i+"\" class='delThis'>del</span></div></li>";
+							$("#musicList-ul").append(str);
+		    		}
+					
+
+					$(".listFoucs").removeClass("listFoucs");
+					$(this).addClass("listFoucs");
+					
+					
+					$("#musics").mCustomScrollbar("vertical",900,"easeOutCirc",1.05,"auto","yes","yes",0); 
+
+					
+		    		break;
+		    	
+		    }
+		});
+
+		$("#musicList-ul").on("click",".playThis",function(){
+	     	var queue=$(this).attr("queue");
+	     	playList=currentList;
+	     	config.lastPlayList=playList;
+	     	//config.lastPlayQueue=playList.indexOf(queue);
+	     	config.lastPlayQueue=Number(queue);
+			
+			var info=config.source[ playList[queue] ];
+			console.log(playList);
+			player.open(info);
+		});
+
+		$("#musicList-ul").on("click",".delThis",function(){
+	     	var queue=$(this).attr("queue");
+	     	currentList.splice(Number(queue),1);
+			console.log(queue,config);
+
+			$("#musicList-ul").empty();
+
+    		for(var i=0;i<currentList.length;i++){
+    			var info=config.source[currentList[i]];
+    			var str="<li><div class=\"normalItem\">"+info.name+"</div><div class=\"selectedItem\" >"+info.name+"<span queue=\""+i+"\" class=\"playThis\">play</span><span queue=\""+i+"\" class='delThis'>del</span></div></li>";
+				$("#musicList-ul").append(str);
+			}
+			
+		});
+
+	     $("#musicList-ul li").dblclick(function(){
+	     	alert("dbclick");
+	     });
+	});
+</script>
+
+
+</body>
+</html>

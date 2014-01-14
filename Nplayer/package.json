@@ -1,0 +1,13 @@
+{
+	"name": "player",
+	"main": "main/player2.html",
+	"window": {
+		"frame": false,
+		"width": 305,
+		"height": 355,
+
+		"toolbar": false,
+		"resizable": false,
+		"plugin": true 
+	}
+}

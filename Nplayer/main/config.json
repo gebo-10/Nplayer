@@ -1,0 +1,13 @@
+{
+	"vol":100,
+	"lastPlayList":"默认",
+	"lastPlayQueue":0,
+	"playMode":"once",
+	"init":false,
+	"playLists":{
+		"默认":["1","2","3","4","5","6"],
+		"fav":["1","3","5","4","2"]
+	},
+	"uid":6,
+	"source":{"0":{"name":"我爱的人","author":"林宥嘉","url":"F:\\2.mp3","lrc":"test.lrc"},"1":{"name":"我爱的人","author":"林宥嘉","url":"F:\\2.mp3","lrc":"test.lrc"},"2":{"name":"all out of love","author":"air supply","url":"F:\\2.mp3","lrc":"test.lrc"},"3":{"name":"我爱的人","author":"林宥嘉","url":"F:\\我爱的人.mp3","lrc":"test.lrc"},"4":{"name":"all out of love","author":"air supply","url":"F:\\1.mp3","lrc":"test.lrc"},"5":{"name":"我爱的人","author":"林宥嘉","url":"F:\\我爱的人.mp3","lrc":"test.lrc"},"6":{"name":"all out of love","author":"air supply","url":"F:\\1.mp3","lrc":"test.lrc"}}
+}
